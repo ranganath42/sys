@@ -62,7 +62,6 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -584,6 +583,8 @@ func (f *Fn) SyscallParamCount() int {
 		return 12
 	case n <= 15:
 		return 15
+	case n <= 42: // current SyscallN limit
+		return n
 	default:
 		panic("too many arguments to system call")
 	}
@@ -594,6 +595,9 @@ func (f *Fn) Syscall() string {
 	c := f.SyscallParamCount()
 	if c == 3 {
 		return syscalldot() + "Syscall"
+	}
+	if c > 15 {
+		return syscalldot() + "SyscallN"
 	}
 	return syscalldot() + "Syscall" + strconv.Itoa(c)
 }
@@ -939,7 +943,7 @@ func main() {
 	if *filename == "" {
 		_, err = os.Stdout.Write(data)
 	} else {
-		err = ioutil.WriteFile(*filename, data, 0644)
+		err = os.WriteFile(*filename, data, 0644)
 	}
 	if err != nil {
 		log.Fatal(err)
@@ -1027,7 +1031,7 @@ func {{.HelperName}}({{.HelperParamList}}) {{template "results" .}}{
 
 {{define "results"}}{{if .Rets.List}}{{.Rets.List}} {{end}}{{end}}
 
-{{define "syscall"}}{{.Rets.SetReturnValuesCode}}{{.Syscall}}(proc{{.DLLFuncName}}.Addr(), {{.ParamCount}}, {{.SyscallParamList}}){{end}}
+{{define "syscall"}}{{.Rets.SetReturnValuesCode}}{{.Syscall}}(proc{{.DLLFuncName}}.Addr(),{{if le .ParamCount 15}} {{.ParamCount}},{{end}} {{.SyscallParamList}}){{end}}
 
 {{define "tmpvarsreadback"}}{{range .Params}}{{if .TmpVarReadbackCode}}
 {{.TmpVarReadbackCode}}{{end}}{{end}}{{end}}
